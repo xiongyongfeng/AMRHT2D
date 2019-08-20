@@ -20,7 +20,7 @@ class cell {
   //initially this->kind and this->last_kind is equal to kind (= bl)
   cell (int x, int y, char kind [], int level, int index);
   //constructor with parameter that specify the kind cell just before a split
-  cell (int x, int y, char kind[], char last_kind[], int level);
+  cell (int x, int y, char kind[], char last_kind[], int level, int index);
   int get_cell_x();
   int get_cell_y();
   char * get_cell_kind();
