@@ -30,7 +30,7 @@ mesh::mesh(dominio * D, int n_levels, int nx, int ny, vector <int> * max_dimensi
 }
 
 void mesh::insert(cell * c){
-  c->set_cell_pointer_to_list((l->at(c->get_cell_level())->insert(l->at(c->get_cell_level())->begin(), c)));
+  c->set_cell_pointer_to_list((l->at(c->get_cell_level()))->insert(l->at(c->get_cell_level())->begin(), c));
   H->insert(c); 
 }
 
@@ -71,7 +71,7 @@ list <cell *>::iterator mesh::split_and_insert(cell * c) {
   return it;
 }
 
-void mesh::create_unstructured_mesh(double (* f) (double x, double y), double(*df) (double x, double y)) {
+void mesh::create_unstructured_mesh(double (* f) (double x, double y, double t), double tempo) {
   //4 pontos para cada celula (haverá pontos para duas ou mais células, com isso, o fator de carga de internal_HT será menor que 1
   //int x, y;
   //int count = 0;
@@ -95,7 +95,7 @@ void mesh::create_unstructured_mesh(double (* f) (double x, double y), double(*d
   int * cellsizes = (int *) malloc (sizeof(int) * ncells);
   int * cellcnt = (int *) malloc (sizeof(int) * ncells); // I still confuse about the mean of this variable
   double * cellmiddles = (double *) malloc (sizeof(double) * ncells);
-  double * rhs = (double *) malloc (sizeof(double) * ncells);
+  //double * rhs = (double *) malloc (sizeof(double) * ncells);
   /****************************************************************************/
   
   double_hash_table * internal_HT = new double_hash_table(4 * H->get_number_cell());
@@ -136,8 +136,8 @@ void mesh::create_unstructured_mesh(double (* f) (double x, double y), double(*d
       celltypes[nzones] = DB_ZONETYPE_QUAD;
       cellsizes[nzones] = 4;
       cellcnt[nzones] = 1;
-      cellmiddles[nzones] = (*f)(cmiddle->get_double_cell_x(), cmiddle->get_double_cell_y());
-      rhs[nzones] = (*df)(cmiddle->get_double_cell_x(), cmiddle->get_double_cell_y());
+      cellmiddles[nzones] = (*f)(cmiddle->get_double_cell_x(), cmiddle->get_double_cell_y(), tempo);
+      //rhs[nzones] = (*df)(cmiddle->get_double_cell_x(), cmiddle->get_double_cell_y());
       delete cmiddle;
       nzones++;
     }
@@ -148,7 +148,12 @@ void mesh::create_unstructured_mesh(double (* f) (double x, double y), double(*d
   /********************silo code*******************************/
   DBfile *dbfile = NULL;
   /* Open the Silo file */
-  dbfile = DBCreate("../data/basic.silo", DB_CLOBBER, DB_LOCAL,"Comment about the data", DB_HDF5);
+  char palavra [100];
+  for (int i = 0; i < 100; i++)
+    palavra[0] = '\0';
+  sprintf(palavra,"../data/basic%4.3lf.silo", 1 + tempo);
+  
+  dbfile = DBCreate(palavra, DB_CLOBBER, DB_LOCAL,"Comment about the data", DB_HDF5);
   if(dbfile == NULL)
     {
       fprintf(stderr, "Could not create Silo file!\n");
@@ -175,10 +180,10 @@ void mesh::create_unstructured_mesh(double (* f) (double x, double y), double(*d
 
   DBPutZonelist2 (dbfile, "zonelist", nzones, ndims, verticeslistC, lverticeslistC, 0, 0, 0, celltypes, cellsizes, cellcnt, ncells, NULL);
   DBPutUcdmesh (dbfile, "meshBLA", ndims, NULL, coords, nnodes, nzones, "zonelist", NULL, DB_DOUBLE, NULL);
-
+  assert(DBPutUcdvar1 (dbfile, "cellmiddles", "meshbBLA", cellmiddles, nzones, NULL, 0, DB_DOUBLE, DB_ZONECENT, NULL) == 0);
   assert(DBPutUcdvar1 (dbfile, "f", "meshBLA", cellmiddles, nzones, NULL, 0, DB_DOUBLE, DB_ZONECENT, NULL) == 0);
 
-  assert(DBPutUcdvar1 (dbfile, "rhs", "meshBLA", cellmiddles, nzones, NULL, 0, DB_DOUBLE, DB_ZONECENT, NULL) == 0);
+  //assert(DBPutUcdvar1 (dbfile, "rhs", "meshBLA", cellmiddles, nzones, NULL, 0, DB_DOUBLE, DB_ZONECENT, NULL) == 0);
       
   /* Close the Silo file. */
   DBClose(dbfile);  
@@ -214,7 +219,7 @@ void mesh::create_unstructured_mesh(double (* f) (double x, double y), double(*d
   }
   cout << endl;*/
 
-  internal_HT->print_information();
+  //internal_HT->print_information();
 
   //TODO
   internal_HT->clean();
@@ -649,6 +654,91 @@ list <cell *> * mesh::neighbours_fd (cell * c) {
   this->up_neighbours_fd(c, nb);
   
   return nb;
+}
+/* Siblings */
+
+vector <cell *> * mesh:: siblings(cell * c){
+  vector <cell *> * L = new vector <cell *>;
+  // cie => canto inferior esquerdo
+  cell * cie;
+  if((c->get_cell_kind())[0] == 't' && (c->get_cell_kind())[1] == 'r'){
+    cie = search(c->get_cell_x() - 1, c->get_cell_y() - 1, c->get_cell_level());
+  }
+  else if((c->get_cell_kind())[0] == 't' && (c->get_cell_kind())[1] == 'l'){
+    cie = search(c->get_cell_x(), c->get_cell_y() - 1, c->get_cell_level());
+  }
+  else if((c->get_cell_kind())[0] == 'b' && (c->get_cell_kind())[1] == 'r'){
+    cie = search(c->get_cell_x() - 1, c->get_cell_y(), c->get_cell_level());
+  }
+  else{
+    cie = c;
+  }
+  if (cie != NULL) {
+    cell * c_sibling;
+    // celula irma do canto inferior direito
+    c_sibling = search(cie->get_cell_x() + 1, cie->get_cell_y(), cie->get_cell_level());
+    if(c_sibling != NULL)
+      L->push_back(c_sibling);
+    // celula irma do canto supeiror esquerdo
+    c_sibling = search(cie->get_cell_x(), cie->get_cell_y() + 1, cie->get_cell_level());
+    if(c_sibling != NULL)
+      L->push_back(c_sibling);
+    //celula irma canto superior direito
+    c_sibling = search(cie->get_cell_x() + 1, cie->get_cell_y() + 1, cie->get_cell_level());
+    if(c_sibling != NULL)
+      L->push_back(c_sibling);
+  }
+  //feito no fim, depois da inclusao das celulas irmas
+  L->push_back(cie);
+  //foram encontradas quatro celulas irmas
+  if(L->size() == 4)
+    return L;
+  else{
+    L->clear();
+    return NULL;
+  }
+}
+
+bool equal(cell * c1, cell * c2){
+  if (c1 == c2)
+    return true;
+  return false;
+}
+
+list <cell*>::iterator mesh::merge(vector <cell *> * V, cell *c){
+  list <cell *>::iterator ret;
+  char last_kind[2] = {((V->back())->get_cell_last_kind())[0],((V->back())->get_cell_last_kind())[1]};
+  assert(((V->back())->get_cell_kind())[0] == 'b' && ((V->back())->get_cell_kind())[1] == 'l');
+  cell * new_c = new cell((V->back())->get_cell_x() / 2, (V->back())->get_cell_y() / 2, last_kind, (V->back())->get_cell_level() - 1, -1);
+  if(new_c->get_cell_x() % 2 == 0 && new_c->get_cell_y() % 2 == 0){
+    last_kind[0] = 'b';
+    last_kind[1] = 'l';
+    new_c->set_cell_kind(last_kind);
+  }
+  else if(new_c->get_cell_x() % 2 == 1 && new_c ->get_cell_y() % 2 == 0){
+    last_kind[0] = 'b';
+    last_kind[1] = 'r';
+    new_c->set_cell_kind(last_kind);
+  }
+  else if(new_c->get_cell_x() % 2 == 0 && new_c->get_cell_y() % 2 == 1){
+    last_kind[0] = 't';
+    last_kind[1] = 'l';
+    new_c->set_cell_kind(last_kind);
+  }
+  else{
+    last_kind[0] = 't';
+    last_kind[1] = 'r';
+    new_c->set_cell_kind(last_kind);
+  }
+  //nova celula
+  insert(new_c);
+  for(vector <cell *>::iterator it = V->begin(); it != V->end(); it++){
+    if(!equal(*it, c)){
+      remove(*it);
+    }
+  }
+  ret = remove(c);
+  return ret;
 }
 
 /* Conta numero de celulas da malha */
