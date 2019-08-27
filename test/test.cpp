@@ -3,110 +3,111 @@
 #include <cassert>
 #include <cmath>
 #include <ctime>
-#include "mesh.h" 
-#include <vector>
+#include "mesh.h"
+#include "particle.h"
 
 #define PI 3.1415926535897
 
 using namespace std;
 
 double f (double x, double y) { 
-  return (cos(2.0 * PI * x) * sin(2.0 * PI * y));
+  return cos(2 * PI * x) * sin(2 * PI * y);
 }
 
-double df (double x, double y) {
-  return (-8.0 * PI * PI * f(x,y));
+double df (double x, double y, double tempo) {
+  return -4 * PI * PI * f(tempo * x, tempo * y);
 }
 
 int main (){
   
-  cell * c;
-  //int level = 0;
-  int number_of_levels = 2;
-  int nxb = 4;
-  int nyb = 4;
-  vector<int> * max_dimension_by_level;
-  vector<double> *rhs, *u, *ff, *A;
-  vector<int> *JA, *IA;
+  list <particle *> P;
+
+  particle * p = new particle();
+
+  P.push_back(p);
+
+  particle * q = P.back();
+
+  q->print_particle();
   
-  //double delta_x, delta_y;
+  int number_of_levels = 4;
+  int nxb = 64;
+  int nyb = 64;
+
   dominio * D;
-  int ncell = 0;
-  int ncellv = 0;
+  
   double xbegin, ybegin, xend, yend;
-  xbegin = ybegin = 0.;
-  xend = yend = 1.0;
+  xbegin = ybegin = -1.;
+  xend = yend = 1.;
   D = new dominio (xbegin, ybegin, xend, yend);
+  
   mesh * M;
-
-  //delta_x = delta_y = 0.05;
-  max_dimension_by_level = new vector<int>;
-  rhs = new vector<double>;
-  u = new vector<double>;
-  ff = new vector<double>;
-    
-  //srand(time(NULL));
-  srand(12345);
   
-  /**********initiallize mesh*******************/
-  for (int i = 0; i < number_of_levels; i++)
-    max_dimension_by_level->push_back((nxb * pow(2,i)) * (nyb * pow(2,i)));
-  M = new mesh(D, number_of_levels, nxb ,nyb, max_dimension_by_level);
+  /******create a base mesh BASE x BASE *********/
+  //you can find the value for BASE at mesh.h file 
+  M = new mesh(D, number_of_levels, nxb, nyb);
   /*********************************************/
-  /* Nivel Base - Nivel 0 */
-  for (int y = 0; y < nxb; y++)
-    for (int x = 0; x < nyb; x++){
-      c = new cell(x, y, 0,-1);
-      M->insert(c);
-    }
     
-  /**************Refinement*************************/
-  list <cell *> * l = M->get_list_cell_by_level (0);
-  list <cell *>::iterator it = l->begin();
-  //hash_table * Hnew = M->get_hash_table();
+  //M->get_hash_table()->print_information();
 
-  /* Caso teste com refinamento estatico */
-  while (it != l->end()) {
-    if (((*it)->get_cell_x() >= 1 && (*it)->get_cell_x() < 2) && ((*it)->get_cell_y () >= 1 && (*it)->get_cell_y() <=2)) {
-      c = M->search((*it)->get_cell_x(), (*it)->get_cell_y(), (*it)->get_cell_level());
-      assert (c != NULL);
-      it = M->split_and_insert(c);
+  
+  double dx, dy, xd, yd;
+  list <cell *> * l;
+  list <cell *>::iterator it;
+  double tempo;
+  vector <cell *> * V;
+
+  xbegin = M->get_dominio()->get_xbegin();
+  ybegin = M->get_dominio()->get_ybegin();
+  xend = M->get_dominio()->get_xend();
+  yend = M->get_dominio()->get_yend();
+  
+  for (tempo = -1; tempo <= 0; tempo += 0.005){
+    //refinement & merge
+    for (int i = number_of_levels - 1; i >= 0 ; i--) {
+      l = M->get_list_cell_by_level(i);
+      
+      dx = fabs(xend - xbegin) / (nxb * pow(2, i));
+      dy = fabs(yend - ybegin) / (nyb * pow(2, i));
+
+      it = l->begin();
+      
+      while (it != l->end()){
+	
+	xd = xbegin + ((*it)->get_cell_x() * dx);
+	yd = ybegin + ((*it)->get_cell_y() * dy);
+	
+	//refinement
+	if ((df(xd + (dx / 2.), yd + (dy / 2.), tempo) <= 25 && df(xd + (dx / 2.), yd + (dy / 2.), tempo) >= 18) ||
+	    (df(xd + (dx / 2.), yd + (dy / 2.), tempo) >= -25 && df(xd + (dx / 2.), yd + (dy / 2.), tempo) <= -18)){
+	  if (i < number_of_levels - 1 /*se i não é o último nível, então pode refinar*/){
+	    it = M->split(*it);
+	  }
+	  else {
+	    it++;
+	  }
+	  //***
+	}
+	//merge
+	else{
+	  if (i > 0) {//se i não é o primeiro nível, então pode fazer merge
+	    V = M->siblings((*it));
+	    if (V != NULL){
+	      it = M->merge(V, *it);
+	      V->clear();
+	    }
+	    else it++;
+	  }
+	  else it++;
+	}
+      }
     }
-    else
-      it++;
+    M->create_unstructured_mesh(&df, tempo);
+    //M->get_hash_table()->print_information();
   }
-
-  /******************************************/
-  /* Apos a criacao da malha gerar os coeficientes da matriz uma lista de pesos para cada celula da malha */
-
-  M->get_hash_table()->print_information();
   
-  M->create_unstructured_mesh(&f, &df);
-
-  ncell = M->counting_mesh_cell();
-  ncellv = M->neighbours_all_cell();
-  cout << ncell << " " << ncellv << endl;
-  vector <cell *> * elem;
-  elem = new vector <cell *> (ncell);
-  IA = new vector <int> (ncell+1,-1);
-  JA = new vector <int> (ncellv,-1);
-  A = new vector <double> (ncellv,0.0);
+  M->create_unstructured_mesh(&df, tempo);
+  //M->get_hash_table()->print_information();
   
-  M->mesh_adress(ncell, elem);
-  M->create_matrix_df (A, JA, IA, ncell, ncellv, elem);
-  M->print_matrix(IA, JA, A, ncell, ncellv);
-  
-  M->calculation_function (&df, ff);
-  M->calculation_function (&f, u);
-  M->rhs_dirichlet_boundary_conditions (&df, rhs);
-  
-  delete rhs;
-  delete u;
-  delete ff;
-  delete elem;
-  delete IA;
-  delete A;
-  delete JA;
-	  
   return 0;
 }

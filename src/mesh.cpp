@@ -11,7 +11,12 @@ mesh::mesh(){
   nyb = -1;
 }
 
-mesh::mesh(dominio * D, int n_levels, int nx, int ny, vector <int> * max_dimension_by_level){
+mesh::mesh(dominio * D, int n_levels, int nx, int ny){
+  this->number_of_levels = n_levels;
+  this->max_dimension_by_level = new vector<int>;
+  for(int i = 0; i < n_levels; i++){
+    this->max_dimension_by_level->push_back((nx * pow(2,i)) * (ny * pow(2,i)));
+  }
   this->D = D;
   //o tamanho da tabela hash vai depender do máximo número de células do nível mais fino, isto é:
   //(1/100)*max_dim_by_level[n_level - 1] => (x * 100) % de max_dim_by_level[n_level - 1]
@@ -58,7 +63,7 @@ hash_table * mesh::get_hash_table() {
 }
 
 
-list <cell *>::iterator mesh::split_and_insert(cell * c) {
+list <cell *>::iterator mesh::split(cell * c) {
   list <cell *>::iterator it;
   cell ** V;
   V = c->split();
