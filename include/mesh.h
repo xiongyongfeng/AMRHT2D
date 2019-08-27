@@ -19,14 +19,15 @@ class mesh {
   vector <int> * max_dimension_by_level;
  public:
   mesh();
-  mesh(dominio * D, int n_levels, int nx, int ny, vector <int> * max_dimension_by_level);
+  //mesh(dominio * D, int n_levels, int nx, int ny, vector <int> * max_dimension_by_level);
+  mesh(dominio * D, int n_levels, int nx, int ny);
   void insert(cell *);
   list <cell *>::iterator remove(cell *);
   cell * search (int, int, int);
   void print_mesh();
   hash_table * get_hash_table();
   list <cell *> * get_list_cell_by_level (int level);
-  list <cell *>::iterator split_and_insert(cell *);
+  list <cell *>::iterator split(cell *);
 
   /*Recebe uma célula c e o nível mais fino que c (ou mesmo nível de c) de seus vizinho(s) à esquerda.
     Devolve uma lista com seu(s) vizinho(s). Essa lista NÃO PODE SER NULA.*/
