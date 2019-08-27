@@ -67,7 +67,7 @@ class mesh {
   void print_matrix(vector <int> * IA, vector <int> * JA, vector <double> * A, int ncell, int ncellv);
   void rhs_dirichlet_boundary_conditions (double (*f) (double x, double y), vector<double> * fvalue);
   
-  void create_unstructured_mesh(double (* f) (double x, double y, double t), double tempo));
+  void create_unstructured_mesh(double (* f) (double x, double y, double t), double tempo);
 
   //Recebe uma célula c e devolve uma lista de células irmãs de c somente se existirem. Caso contrário, devolve NULL. As células irmãs de c são c mais outras três células produzidas com o refinamento de uma célula.
   vector <cell *> * siblings (cell * c);
