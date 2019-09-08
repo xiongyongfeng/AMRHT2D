@@ -14,6 +14,7 @@ mesh::mesh(){
 mesh::mesh(dominio * D, int n_levels, int nx, int ny){
   this->number_of_levels = n_levels;
   this->max_dimension_by_level = new vector<int>;
+  
   for(int i = 0; i < n_levels; i++){
     this->max_dimension_by_level->push_back((nx * pow(2,i)) * (ny * pow(2,i)));
   }
@@ -28,10 +29,17 @@ mesh::mesh(dominio * D, int n_levels, int nx, int ny){
     list<cell *> * l_by_level= new list <cell *>;
     l->push_back(l_by_level); 
   }
-  number_of_levels = n_levels;
+  //number_of_levels = n_levels;
   nxb = nx;
   nyb = ny;
-  this->max_dimension_by_level = max_dimension_by_level;
+  //this->max_dimension_by_level = max_dimension_by_level;
+  cell * c;
+  int index = 0;
+  for (int y = 0; y < nyb; y++)
+    for (int x = 0; x < nxb; x++){
+      c = new cell(x, y, 0, index++);
+      this->insert(c);
+    }
 }
 
 void mesh::insert(cell * c){
@@ -156,7 +164,7 @@ void mesh::create_unstructured_mesh(double (* f) (double x, double y, double t),
   char palavra [100];
   for (int i = 0; i < 100; i++)
     palavra[0] = '\0';
-  sprintf(palavra,"../data/basic%4.3lf.silo", 1 + tempo);
+  sprintf(palavra,"/home/alvaro/Desktop/data/basic%4.3lf.silo", 1 + tempo);
   
   dbfile = DBCreate(palavra, DB_CLOBBER, DB_LOCAL,"Comment about the data", DB_HDF5);
   if(dbfile == NULL)
@@ -664,41 +672,51 @@ list <cell *> * mesh::neighbours_fd (cell * c) {
 
 vector <cell *> * mesh:: siblings(cell * c){
   vector <cell *> * L = new vector <cell *>;
-  // cie => canto inferior esquerdo
+
+  //cie => canto inferior esquerdo
   cell * cie;
-  if((c->get_cell_kind())[0] == 't' && (c->get_cell_kind())[1] == 'r'){
+  if (c->get_cell_x() % 2 == 1 && c->get_cell_y() % 2 == 1){
+    //c is a cell top right
     cie = search(c->get_cell_x() - 1, c->get_cell_y() - 1, c->get_cell_level());
   }
-  else if((c->get_cell_kind())[0] == 't' && (c->get_cell_kind())[1] == 'l'){
+  else if (c->get_cell_x() % 2 == 0 && c->get_cell_y() % 2 == 1){
+    //c is a cell top left
     cie = search(c->get_cell_x(), c->get_cell_y() - 1, c->get_cell_level());
   }
-  else if((c->get_cell_kind())[0] == 'b' && (c->get_cell_kind())[1] == 'r'){
+  else if (c->get_cell_x() % 2 == 1 && c->get_cell_y() % 2 == 0){
+    //c is a cell bottom right
     cie = search(c->get_cell_x() - 1, c->get_cell_y(), c->get_cell_level());
   }
-  else{
+  else {
     cie = c;
   }
+
   if (cie != NULL) {
     cell * c_sibling;
-    // celula irma do canto inferior direito
+    
+    //célula irmã do canto inferior direito
     c_sibling = search(cie->get_cell_x() + 1, cie->get_cell_y(), cie->get_cell_level());
-    if(c_sibling != NULL)
+    if (c_sibling != NULL)
       L->push_back(c_sibling);
-    // celula irma do canto supeiror esquerdo
+
+    //célula irmã do canto superior esquerdo
     c_sibling = search(cie->get_cell_x(), cie->get_cell_y() + 1, cie->get_cell_level());
-    if(c_sibling != NULL)
+    if (c_sibling != NULL)
       L->push_back(c_sibling);
-    //celula irma canto superior direito
+    
+    //célula irmã do canto superior direito
     c_sibling = search(cie->get_cell_x() + 1, cie->get_cell_y() + 1, cie->get_cell_level());
-    if(c_sibling != NULL)
+    if (c_sibling != NULL)
       L->push_back(c_sibling);
   }
-  //feito no fim, depois da inclusao das celulas irmas
+  
+  //feito no fim, depois da inclusão das células irmãs
   L->push_back(cie);
-  //foram encontradas quatro celulas irmas
-  if(L->size() == 4)
+
+  //foram encontrados 4 células irmãs
+  if (L->size() == 4)
     return L;
-  else{
+  else {
     L->clear();
     return NULL;
   }
@@ -712,33 +730,12 @@ bool equal(cell * c1, cell * c2){
 
 list <cell*>::iterator mesh::merge(vector <cell *> * V, cell *c){
   list <cell *>::iterator ret;
-  char last_kind[2] = {((V->back())->get_cell_last_kind())[0],((V->back())->get_cell_last_kind())[1]};
-  assert(((V->back())->get_cell_kind())[0] == 'b' && ((V->back())->get_cell_kind())[1] == 'l');
-  cell * new_c = new cell((V->back())->get_cell_x() / 2, (V->back())->get_cell_y() / 2, last_kind, (V->back())->get_cell_level() - 1, -1);
-  if(new_c->get_cell_x() % 2 == 0 && new_c->get_cell_y() % 2 == 0){
-    last_kind[0] = 'b';
-    last_kind[1] = 'l';
-    new_c->set_cell_kind(last_kind);
-  }
-  else if(new_c->get_cell_x() % 2 == 1 && new_c ->get_cell_y() % 2 == 0){
-    last_kind[0] = 'b';
-    last_kind[1] = 'r';
-    new_c->set_cell_kind(last_kind);
-  }
-  else if(new_c->get_cell_x() % 2 == 0 && new_c->get_cell_y() % 2 == 1){
-    last_kind[0] = 't';
-    last_kind[1] = 'l';
-    new_c->set_cell_kind(last_kind);
-  }
-  else{
-    last_kind[0] = 't';
-    last_kind[1] = 'r';
-    new_c->set_cell_kind(last_kind);
-  }
-  //nova celula
+  
+  cell * new_c = new cell ((V->back())->get_cell_x() / 2, (V->back())->get_cell_y() / 2, (V->back())->get_cell_level() - 1, -1);
+ 
   insert(new_c);
-  for(vector <cell *>::iterator it = V->begin(); it != V->end(); it++){
-    if(!equal(*it, c)){
+  for (vector <cell *>::iterator it = V->begin(); it != V->end(); it++) {
+    if (!equal(*it, c)){
       remove(*it);
     }
   }
