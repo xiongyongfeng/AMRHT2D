@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <vector>
 #include <list>
+#include <cmath>
 #include "cell.h"
 
 #define INI_SIZE_TABLE 1000000
@@ -17,8 +18,11 @@ class hash_table {
   int number_cell;
   double load_factor;
   int enume;
+  //***atributos da malha na tabela hash
+  int max_level, n_colunas_max_level;
+  //***
  public:
-  hash_table (int size);
+  hash_table (int size, int max_level, int n_colunas_max_level);
   void insert(cell *);
   void remove(cell *);
   //Recebe: a chave de uma célula, ou seja, a sua posição (x, y) e o seu nível h
