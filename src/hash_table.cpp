@@ -1,7 +1,7 @@
 #include<iostream>
 #include "hash_table.h"
 
-hash_table::hash_table (int size){
+hash_table::hash_table (int size, int max_level, int n_colunas_max_level){
   //printf ("tamanho da tabela: %d\n", size);
   H = new vector<list <cell *> *>;
   list<cell *> * l;
@@ -15,6 +15,10 @@ hash_table::hash_table (int size){
   //*it = new list<cell *>;
   number_cell = 0;
   load_factor = 0.;
+
+  this->n_colunas_max_level = n_colunas_max_level;
+  this->max_level = max_level;
+  
 }
 
 void hash_table::insert(cell * c){
@@ -52,20 +56,29 @@ cell * hash_table::search(int x, int y, int level){
   return founded_c;
 }
 
-unsigned int hash_table::hash_function(int x, int y, int level){
-  //dimensão do domínio discretizado por nível h: n_h x n_h
-  //n_0 x n_0 = 32 x 32
-  //n_1 x n_1 = 64 x 64
-  //n_2 x n_2 = 128 x 128
-  //n_3 x n_3 = 256 x 256
-  //n_4 x n_4 = 512 x 512
+/*unsigned int hash_table::hash_function_old(int x, int y, int level){
   int n[6] = {32, 64, 128, 256, 512, 1024};
   int key = x + y*n[level];
   for (int i = 0; i <= level - 1; i++)
-    key += ((n[i] * n[i]) % H->size());//INI_SIZE_TABLE;
-  int index = key % H->size();//INI_SIZE_TABLE;
+    key += ((n[i] * n[i]) % H->size());
+  int index = key % H->size();
+  return index;
+  }*/
+
+unsigned int hash_table::hash_function(int x, int y, int level){
+
+  int index, key, i, j;
+  int diff_level = this->max_level - level;
+  int pow_2_diff_level = pow(2, diff_level);
+  i = x * pow_2_diff_level; //encontra a abscissa correspondente a x no nível mais fino
+  j = y * pow_2_diff_level; //encontra a ordenada correspondente a y no nível mais fino
+  key = (this->n_colunas_max_level * j + i); //encontra a numeração da célula (i, j, l_max)
+                                             //considerando numeração da esquerda para a direira e
+                                             //de cima para baixo (e começando do 0)
+  index = key % H->size();
   return index;
 }
+
 
 int hash_table::get_number_cell (){
   return number_cell;
@@ -85,6 +98,9 @@ void hash_table::print_hash_table() {
 	cout << "(" << (*it)->get_cell_x() << ", " << (*it)->get_cell_y() << "): " << (*it)->get_cell_level() << ", " << (*it)->get_cell_index() << endl;
       }
     }
+  cout << "Número maximo de níveis da malha: " << max_level << endl;
+  cout << "Número de colunas do nível mais fino: " << n_colunas_max_level << endl;
+							       
 }
 
 unsigned int hash_table::get_hash_table_size() {

@@ -22,7 +22,7 @@ mesh::mesh(dominio * D, int n_levels, int nx, int ny){
   //o tamanho da tabela hash vai depender do máximo número de células do nível mais fino, isto é:
   //(1/100)*max_dim_by_level[n_level - 1] => (x * 100) % de max_dim_by_level[n_level - 1]
   double x = 0.2;
-  H = new hash_table((int)(x * max_dimension_by_level->at(n_levels - 1)));
+  H = new hash_table((int)(x * max_dimension_by_level->at(n_levels - 1)), n_levels, nx * pow(2, n_levels));
   //H = new hash_table(1000000);
   l = new vector<list<cell *> * >;
   for (int i = 0; i < n_levels; i++){
