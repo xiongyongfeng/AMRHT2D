@@ -21,7 +21,7 @@ mesh::mesh(dominio * D, int n_levels, int nx, int ny){
   this->D = D;
   //o tamanho da tabela hash vai depender do máximo número de células do nível mais fino, isto é:
   //(1/100)*max_dim_by_level[n_level - 1] => (x * 100) % de max_dim_by_level[n_level - 1]
-  double x = 0.2;
+  double x = 0.1;
   H = new hash_table((int)(x * max_dimension_by_level->at(n_levels - 1)), n_levels, nx * pow(2, n_levels));
   //H = new hash_table(1000000);
   l = new vector<list<cell *> * >;
@@ -34,10 +34,12 @@ mesh::mesh(dominio * D, int n_levels, int nx, int ny){
   nyb = ny;
   //this->max_dimension_by_level = max_dimension_by_level;
   cell * c;
-  int index = 0;
+  //int index = 0;
+  //double iniciau = 0.0, iniciav = 0.0, iniciaphi = 0.0, iniciaphi0 = 0.0;
+
   for (int y = 0; y < nyb; y++)
     for (int x = 0; x < nxb; x++){
-      c = new cell(x, y, 0, index++);
+      c = new cell(x, y, 0);
       this->insert(c);
     }
 }
@@ -57,6 +59,20 @@ list <cell *>::iterator mesh::remove(cell * c) {
 
 cell * mesh::search(int x, int y, int level) {
   return H->search(x, y, level);
+}
+
+cell * mesh::search_particle_cell(particle * p, int level) {
+  double xb, xe, yb, ye, dx, dy;
+  int ip, jp;
+  xb = get_dominio()->get_xbegin();
+  yb = get_dominio()->get_ybegin();
+  xe = get_dominio()->get_xend();
+  ye = get_dominio()->get_yend();
+  dx = fabs(xe - xb)/(nxb*pow(2,level));
+  dy = fabs(ye - yb)/(nyb*pow(2,level));
+  ip = floor((p->get_particle_x() - xb)/dx);
+  jp = floor((p->get_particle_y() - yb)/dy);
+  return H->search(ip, jp, level);
 }
 
 void mesh::print_mesh() {
@@ -82,6 +98,18 @@ list <cell *>::iterator mesh::split(cell * c) {
   insert(V[3]);
   free (V);
   return it;
+}
+
+cell ** mesh::split_return_new_cells(cell * c) {
+  list <cell *>::iterator it;
+  cell ** V;
+  V = c->split();
+  it = remove(c);
+  insert(V[0]);
+  insert(V[1]);
+  insert(V[2]);
+  insert(V[3]);
+  return V;
 }
 
 void mesh::create_unstructured_mesh(double (* f) (double x, double y, double t), double tempo) {
@@ -164,7 +192,7 @@ void mesh::create_unstructured_mesh(double (* f) (double x, double y, double t),
   char palavra [100];
   for (int i = 0; i < 100; i++)
     palavra[0] = '\0';
-  sprintf(palavra,"/home/alvaro/Desktop/data/basic%4.3lf.silo", 1 + tempo);
+  sprintf(palavra,"/home/priscila/AMRHT2D-master/data/basic%4.3lf.silo", 1 + tempo);
   
   dbfile = DBCreate(palavra, DB_CLOBBER, DB_LOCAL,"Comment about the data", DB_HDF5);
   if(dbfile == NULL)
@@ -239,6 +267,188 @@ void mesh::create_unstructured_mesh(double (* f) (double x, double y, double t),
   
 }
 
+void mesh::print_silo(int ct, list <particle *> * P) {
+  //4 pontos para cada celula (haverá pontos para duas ou mais células, com isso, o fator de carga de internal_HT será menor que 1
+  //int x, y;
+  //int count = 0;
+  double xd, yd, dx, dy;
+  vector <double> ptx;
+  vector <double> pty;
+  vector <int> vert;
+  //int number_node = 1;
+  //por enquanto as variáveis abaixo (a, b, delta_0) descrevem o domínio. (a,b) é o ponto onde começa o domínio e delta_0 é o fator de discretização no nível mais grosso (nível 0)
+  double xbegin, ybegin, xend, yend;
+  xbegin = get_dominio()->get_xbegin();
+  ybegin = get_dominio()->get_ybegin();
+  xend = get_dominio()->get_xend();
+  yend = get_dominio()->get_yend();
+  
+  /****************SHAPE OR ZONES OR CELL ARE THE SAME*************************/
+  int ncells = H->get_number_cell();
+  int * verticeslist = (int *) malloc (sizeof(int) * (4*ncells));
+  int * celltypes = (int *) malloc (sizeof(int) * ncells);
+  int * cellsizes = (int *) malloc (sizeof(int) * ncells);
+  int * cellcnt = (int *) malloc (sizeof(int) * ncells); // I still confuse about the mean of this variable
+  double * u = (double *) malloc (sizeof(double) * ncells);
+  double * v = (double *) malloc (sizeof(double) * ncells);
+  double * phi = (double *) malloc (sizeof(double) * ncells); 
+  /****************************************************************************/
+  int i, j;
+  int nzones = 0;
+  int cnodes = 0;
+  for (int k = 0; k < number_of_levels; k++) {
+    //printf ("Nível: %d\n", i);
+    dx = fabs(xend - xbegin) / (nxb * pow(2, k));
+    dy = fabs(yend - ybegin) / (nyb * pow(2, k));
+    for (list <cell *>::reverse_iterator it = l->at(k)->rbegin(); it != l->at(k)->rend(); it++) {
+      i = (*it)->get_cell_x();
+      j = (*it)->get_cell_y();
+      xd = xbegin + (i * dx);
+      yd = ybegin + (j * dy);
+      (*it)->set_cell_index(nzones);
+      //Aqui a inclusao das coordenadas no sentido horario
+      ptx.push_back(xd);
+      pty.push_back(yd);
+      //vert.push_back(cnodes);
+      verticeslist[cnodes] = cnodes;
+      cnodes++;
+      ptx.push_back(xd);
+      pty.push_back(yd + dy);
+      verticeslist[cnodes] = cnodes;
+      ptx.push_back(xd + dx);
+      pty.push_back(yd + dy);
+      cnodes++;
+      verticeslist[cnodes] = cnodes;
+      ptx.push_back(xd + dx);
+      pty.push_back(yd);
+      cnodes++;
+      verticeslist[cnodes] = cnodes;
+      /*if(i == pow(2,k)*nxb - 1){
+	ptx.push_back(xd + dx);
+	pty.push_back(yd);
+	vert.push_back(cnodes);
+	cnodes++;
+      }
+      if(j == pow(2,k)*nyb - 1){
+	ptx.push_back(xd);
+	pty.push_back(yd + dy);
+	vert.push_back(cnodes);
+	cnodes++;
+      }
+      if((j == pow(2,k)*nyb - 1) && (i == pow(2,k)*nxb - 1)){
+	ptx.push_back(xd + dx);
+	pty.push_back(yd + dy);
+	vert.push_back(cnodes);
+	cnodes++;
+	}*/
+      //add a ZONE related to the four dots cs[0], cs[1], cs[2] and cs[3]
+      celltypes[nzones] = DB_ZONETYPE_QUAD;
+      cellsizes[nzones] = 4;
+      cellcnt[nzones] = 1;
+      u[nzones] = (*it)->get_cell_velu();
+      v[nzones] = (*it)->get_cell_velv();
+      phi[nzones] = (*it)->get_cell_phi();
+      nzones++;
+      cnodes++;
+    }
+  }
+
+  assert (nzones == ncells);
+
+  /********************silo code*******************************/
+  DBfile *dbfile = NULL;
+  /* Open the Silo file */
+  char palavra [100];
+  for (int i = 0; i < 100; i++)
+    palavra[0] = '\0';
+  sprintf(palavra,"/home/priscila/AMRHT2D-master/data/basic%d.silo", ct);
+  
+  dbfile = DBCreate(palavra, DB_CLOBBER, DB_LOCAL,"Comment about the data", DB_HDF5);
+  if(dbfile == NULL)
+    {
+      fprintf(stderr, "Could not create Silo file!\n");
+      exit(0);
+    }
+  
+  int ndims = 2;
+  double * coords [2];
+  coords[0] = (double *) malloc (sizeof(double) * ptx.size());
+  coords[1] = (double *) malloc (sizeof(double) * ptx.size());
+  
+  for (unsigned int i = 0; i < ptx.size(); i++){
+    coords[0][i] = ptx[i];
+    coords[1][i] = pty[i];
+  }
+  
+  int nnodes = ptx.size();
+
+  DBPutZonelist2 (dbfile, "zonelist", nzones, ndims, verticeslist, cnodes, 0, 0, 0, celltypes, cellsizes, cellcnt, ncells, NULL);
+
+  DBPutUcdmesh (dbfile, "meshBLA", ndims, NULL, coords, nnodes, nzones, "zonelist", NULL, DB_DOUBLE, NULL);
+
+  assert(DBPutUcdvar1 (dbfile, "velu", "meshBLA", u, nzones, NULL, 0, DB_DOUBLE, DB_ZONECENT, NULL) == 0);
+  
+  assert(DBPutUcdvar1 (dbfile, "velv", "meshBLA" , v, nzones, NULL, 0, DB_DOUBLE, DB_ZONECENT, NULL) == 0);
+
+  assert(DBPutUcdvar1 (dbfile, "phi", "meshBLA", phi, nzones, NULL, 0, DB_DOUBLE, DB_ZONECENT, NULL) == 0);
+
+  
+  //silo particle
+  double *x , *y, *up, *vp, *rp;
+  int NPTS = P->size();
+  x = (double *) malloc(sizeof(double)*NPTS);
+  y = (double *) malloc(sizeof(double)*NPTS);
+  up = (double *) malloc(sizeof(double)*NPTS);
+  vp = (double *) malloc(sizeof(double)*NPTS);
+  rp = (double *) malloc(sizeof(double)*NPTS);
+  
+  double * coords_points [2];
+  coords_points [0] = x;
+  coords_points [1] = y;
+  
+  i = 0;
+  for (list<particle *>::iterator it = P->begin(); it != P->end(); it++){
+    x[i] = (*it)->get_particle_x();
+    y[i] = (*it)->get_particle_y();
+    up[i] = (*it)->get_particle_vx();
+    vp[i] = (*it)->get_particle_vy();
+    rp[i] = (*it)->get_particle_radius();
+    i++;
+  }
+  
+  DBPutPointmesh(dbfile, "pointmesh", ndims, coords_points, NPTS, DB_DOUBLE, NULL);
+
+  //DBPutPointvar(dbfile, "veup", "pointmesh", NPTS, up, NPTS, DB_DOUBLE, NULL);
+
+  /* Close the Silo file. */
+  DBClose(dbfile);  ;
+  
+}
+
+void mesh::initialize_var(double (* u) (double x, double y, double t), double (* v) (double x, double y, double t), double (*phi) (double x, double y, double t), double tempo, double tempo0){
+  double xbegin, ybegin, xend, yend, dx, dy, xd, yd;
+  xbegin = get_dominio()->get_xbegin();
+  ybegin = get_dominio()->get_ybegin();
+  xend = get_dominio()->get_xend();
+  yend = get_dominio()->get_yend();
+
+  for (int i = 0; i < number_of_levels; i++) {
+    dx = fabs(xend - xbegin) / (nxb * pow(2, i));
+    dy = fabs(yend - ybegin) / (nyb * pow(2, i));
+    for (list <cell *>::iterator it = l->at(i)->begin(); it != l->at(i)->end(); it++) {
+      //cout << "(" << (*it)->get_cell_x() << ", " << (*it)->get_cell_y() << "): " << (*it)->get_cell_level() << endl;
+      xd = xbegin + (0.5 + (*it)->get_cell_x()) * dx;//(delta_0 / pow(2, i)));
+      yd = ybegin + (0.5 + (*it)->get_cell_y()) * dy;//(delta_0 / pow(2, i)));
+      (*it)->set_cell_velu((*u)(xd, yd, tempo));
+      (*it)->set_cell_velv((*v)(xd, yd, tempo));
+      (*it)->set_cell_phi((*phi)(xd, yd, tempo));
+      (*it)->set_cell_phi0((*phi)(xd, yd, tempo0));
+      //(*it)->set_cell_with_particle(0);
+    }
+  }
+
+}
+
 void mesh::calculation_exact_function (double (* f) (double_cell * c)){
   double xbegin, ybegin, xend, yend, dx, dy, xmiddle, ymiddle;
   double_cell * c;
@@ -311,8 +521,8 @@ void mesh::left_neighbours (cell * c, list <cell *> * nb) {
 	cell * found = H->search (xl, yl, l);
 	if (found != NULL) {
 	  nb->insert (nb->begin(), found);
-	  cout << "FOUND in coarser" << endl;
-	  printf ("L.: (%d, %d): %d)\n", xl, yl, l);
+	  //cout << "FOUND in coarser" << endl;
+	  //printf ("L.: (%d, %d): %d)\n", xl, yl, l);
 	  break;
 	}
       }
@@ -328,9 +538,51 @@ void mesh::left_neighbours (cell * c, list <cell *> * nb) {
 	    cell * found = H->search (xl, yl, l);
 	    if (found != NULL) {
 	      nb->insert (nb->begin(), found);
-	      cout << "FOUND in finer" << endl;
-	      printf ("L.: (%d, %d): %d)\n", xl, yl, l);
+	      ///cout << "FOUND in finer" << endl;
+	      //printf ("L.: (%d, %d): %d)\n", xl, yl, l);
 	    }
+	  }
+	} 
+      }
+    }
+  }
+}
+
+void mesh::right_neighbours (cell * c, list <cell *> * nb) {
+  int x = c->get_cell_x();
+  int y = c->get_cell_y();
+  int level = c->get_cell_level();
+  int xl, yl;
+    
+  if (x != nxb*pow(2,level)) {
+    int i;
+    if (x % 2 == 1){
+      for (i = level - 1; i >= 0; i--){
+	xl = (int) (x / pow (2, level - i));
+	yl = (int) (y / pow (2, level - i));
+	xl = xl + 1;
+	//printf ("R.: (%d, %d): %d)\n", xl, yl, i);
+	cell * found = H->search (xl, yl, i);
+	if (found != NULL) {
+	  nb->insert (nb->begin(), found);
+	  //cout << "FOUND in coarser" << endl;
+	  //printf ("R.: (%d, %d): %d)\n", xl, yl, i);
+	  break;
+	}
+      }
+    }
+    if (x % 2 == 0 || (x % 2 == 1 && i == -1)) {//não encontrou uma célula à esquerda mais grossa 
+      for (i = level; i < number_of_levels; i++) {
+	xl = (int) (pow (2, i - level) * x);
+	xl = xl + pow(2, i - level); //procuramos pelos vizinhos à direita de c e a referência de c é o canto inferior esquerdo. Temos que "pular" as células nível atual (+ fino) dentro do próprio c 
+	for (int j = 0; j <= (int) pow (2, i - level) - 1; j++) {
+	  yl = (int) (pow (2, i - level) * y) + j;
+	  //printf ("R.: (%d, %d): %d)\n", xl, yl, i);
+	  cell * found = H->search (xl, yl, i);
+	  if (found != NULL) {
+	    nb->insert (nb->begin(), found);
+	    //cout << "FOUND in finer" << endl;
+	    //printf ("R.: (%d, %d): %d)\n", xl, yl, i);
 	  }
 	} 
       }
@@ -353,15 +605,25 @@ void mesh::down_neighbours (cell * c, list <cell *> * nb) {
 	yl = yl - 1;
 	//printf ("(%d, %d): %d)\n", xl, yl, i);
 	cell * found = H->search (xl, yl, i);
-	if (found != NULL) {
+	if (found != NULL){
 	  nb->insert (nb->begin(), found);
-	  cout << "FOUND in coarser" << endl;
-	  printf ("D.: (%d, %d): %d)\n", xl, yl, i);
+	  //found = H->search(xl-1, yl, i);
+	  //if(found != NULL){
+	  //  nb->insert(nb->begin(), found);
+	    //printf ("DL.: (%d, %d): %d)\n", xl-1, yl, i);
+	  //}
+	  //found = H->search(xl+1, yl, i);
+	  //if(found != NULL){
+	  //  nb->insert(nb->begin(), found);
+	    //printf ("DR.: (%d, %d): %d)\n", xl+1, yl, i);
+	  //}
+	  //cout << "FOUND in coarser" << endl;
+	  //printf ("D.: (%d, %d): %d)\n", xl, yl, i);
 	  break;
 	}
       }
     }
-    if (y % 2 == 1 || (y % 2 == 0 && i == -1)) {//não encontrou uma célula à esquerda mais grossa 
+    if (y % 2 == 1 || (y % 2 == 0 && i == -1)) {//não encontrou uma célula abaixo mais grossa 
       for (i = level; i < number_of_levels; i++) {
 	yl = (int) (pow (2, i - level) * y);
 	yl = yl - 1;
@@ -371,55 +633,24 @@ void mesh::down_neighbours (cell * c, list <cell *> * nb) {
 	  cell * found = H->search (xl, yl, i);
 	  if (found != NULL) {
 	    nb->insert (nb->begin(), found);
-	    cout << "FOUND in finer" << endl;
-	    printf ("D.: (%d, %d): %d)\n", xl, yl, i);
+	    //cout << "FOUND in finer" << endl;
+	    //printf ("D.: (%d, %d): %d)\n", xl, yl, i);
+	    //found = H->search (xl-1, yl, i);
+	    //if (found != NULL) {
+	    //  nb->insert (nb->begin(), found);
+	      //printf ("DL.: (%d, %d): %d)\n", xl-1, yl, i);
+	    //}
+	    //found = H->search (xl+1, yl, i);
+	    //if (found != NULL) {
+	    //  nb->insert (nb->begin(), found);
+	      //printf ("DR.: (%d, %d): %d)\n", xl+1, yl, i);
 	  }
+	  
 	} 
       }
     }
   }
-}
-
-void mesh::right_neighbours (cell * c, list <cell *> * nb) {
-  int x = c->get_cell_x();
-  int y = c->get_cell_y();
-  int level = c->get_cell_level();
-  int xl, yl;
-    
-  if (x != nxb - 1) {
-    int i;
-    if (x % 2 == 1){
-      for (i = level - 1; i >= 0; i--){
-	xl = (int) (x / pow (2, level - i));
-	yl = (int) (y / pow (2, level - i));
-	xl = xl + 1;
-	//printf ("R.: (%d, %d): %d)\n", xl, yl, i);
-	cell * found = H->search (xl, yl, i);
-	if (found != NULL) {
-	  nb->insert (nb->begin(), found);
-	  cout << "FOUND in coarser" << endl;
-	  printf ("R.: (%d, %d): %d)\n", xl, yl, i);
-	  break;
-	}
-      }
-    }
-    if (x % 2 == 0 || (x % 2 == 1 && i == -1)) {//não encontrou uma célula à esquerda mais grossa 
-      for (i = level; i < number_of_levels; i++) {
-	xl = (int) (pow (2, i - level) * x);
-	xl = xl + pow(2, i - level); //procuramos pelos vizinhos à direita de c e a referência de c é o canto inferior esquerdo. Temos que "pular" as células nível atual (+ fino) dentro do próprio c 
-	for (int j = 0; j <= (int) pow (2, i - level) - 1; j++) {
-	  yl = (int) (pow (2, i - level) * y) + j;
-	  //printf ("R.: (%d, %d): %d)\n", xl, yl, i);
-	  cell * found = H->search (xl, yl, i);
-	  if (found != NULL) {
-	    nb->insert (nb->begin(), found);
-	    cout << "FOUND in finer" << endl;
-	    printf ("R.: (%d, %d): %d)\n", xl, yl, i);
-	  }
-	} 
-      }
-    }
-  }
+  
 }
 
 void mesh::up_neighbours (cell * c, list <cell *> * nb) {
@@ -428,7 +659,7 @@ void mesh::up_neighbours (cell * c, list <cell *> * nb) {
   int level = c->get_cell_level();
   int xl, yl;
     
-  if (y != nyb - 1) {
+  if (y != nyb*pow(2,level)) {
     int i;
     if (y % 2 == 1){
       for (i = level - 1; i >= 0; i--){
@@ -439,8 +670,18 @@ void mesh::up_neighbours (cell * c, list <cell *> * nb) {
 	cell * found = H->search (xl, yl, i);
 	if (found != NULL) {
 	  nb->insert (nb->begin(), found);
-	  cout << "FOUND in coarser" << endl;
-	  printf ("U.: (%d, %d): %d)\n", xl, yl, i);
+	  //found = H->search(xl-1, yl, i);
+	  //if(found != NULL){
+	  //  nb->insert(nb->begin(), found);
+	    //printf ("UL.: (%d, %d): %d)\n", xl-1, yl, i);
+	  //}
+	  //found = H->search(xl+1, yl, i);
+	  //if(found != NULL){
+	  //  nb->insert(nb->begin(), found);
+	    //printf ("UR.: (%d, %d): %d)\n", xl+1, yl, i);
+	  //}
+	  //cout << "FOUND in coarser" << endl;
+	  //printf ("U.: (%d, %d): %d)\n", xl, yl, i);
 	  break;
 	}
       }
@@ -455,18 +696,29 @@ void mesh::up_neighbours (cell * c, list <cell *> * nb) {
 	  cell * found = H->search (xl, yl, i);
 	  if (found != NULL) {
 	    nb->insert (nb->begin(), found);
-	    cout << "FOUND in finer" << endl;
-	    printf ("U.: (%d, %d): %d)\n", xl, yl, i);
+	    //found = H->search (xl-1, yl, i);
+	    //if (found != NULL) {
+	    //  nb->insert (nb->begin(), found);
+	      //printf("UL.: (%d, %d): %d)\n", xl-1, yl, i);
+	    //}
+	    //found = H->search (xl+1, yl, i);
+	    //if (found != NULL) {
+	    //  nb->insert (nb->begin(), found);
+	      //printf("UR.: (%d, %d): %d)\n", xl+1, yl, i);
+	    //}
+	    //cout << "FOUND in finer" << endl;
+	    //printf ("U.: (%d, %d): %d)\n", xl, yl, i);
 	  }
 	} 
       }
     }
   }
+ 
 }
 
 list <cell *> * mesh::neighbours (cell * c) {
   list <cell *> * nb = new list <cell*>;
-
+  nb->insert(nb->begin(), c);
   this->left_neighbours(c, nb);
   this->right_neighbours(c, nb);
   this->down_neighbours(c, nb);
@@ -534,48 +786,6 @@ void mesh::left_neighbours_fd (cell * c, list <cell *> * nb) {
   }
 }
 
-void mesh::down_neighbours_fd (cell * c, list <cell *> * nb) {
-  int i = c->get_cell_x();
-  int j = c->get_cell_y();
-  int level = c->get_cell_level();
-  
-  if (j != 0) {
-     /* Same level ! */
-    cell * found = H->search(i,j-1,level);
-    if(found != NULL){
-      insert_neighbour(found, nb);
-    }
-    else{
-      /* Finer level! */
-      found = H->search (2*i, 2*(j-1), level+1);
-      if (found != NULL){ 
-	insert_neighbour(found, nb);
-      }
-      found = H->search (2*i+1, 2*(j-1), level+1);
-      if (found != NULL){
-	insert_neighbour(found, nb);
-      }
-      found = H->search (2*i, 2*(j-1)+1, level+1);
-      if (found != NULL){ 
-	insert_neighbour(found, nb);
-      }
-      found = H->search (2*i+1, 2*(j-1)+1, level+1);
-      if (found != NULL) {
-	insert_neighbour(found, nb);
-      }
-      /* Coarser level */
-      found = H->search ((i+1)/2-1, (j+1)/2-1, level-1);
-      if (found != NULL){ 
-	insert_neighbour(found, nb);
-      }
-      found = H->search ((i+1)/2, (j+1)/2-1, level-1);
-      if (found != NULL){
-	insert_neighbour(found, nb);
-      }
-    }
-  }
-}
-
 void mesh::right_neighbours_fd (cell * c, list <cell *> * nb) {
   int i = c->get_cell_x();
   int j = c->get_cell_y();
@@ -617,44 +827,111 @@ void mesh::right_neighbours_fd (cell * c, list <cell *> * nb) {
   }
 }
 
+void mesh::down_neighbours_fd (cell * c, list <cell *> * nb) {
+  int i = c->get_cell_x();
+  int j = c->get_cell_y();
+  int level = c->get_cell_level();
+  list <cell *> * nbd = new list <cell*>;
+  
+  if (j != 0) {
+     /* Same level ! */
+    cell * found = H->search(i,j-1,level);
+    if(found != NULL){
+      insert_neighbour(found, nbd);
+      insert_neighbour(found, nb);
+    }
+    else{
+      /* Finer level! */
+      found = H->search (2*i, 2*(j-1), level+1);
+      if (found != NULL){ 
+	insert_neighbour(found, nb);
+	insert_neighbour(found, nbd);
+      }
+      found = H->search (2*i+1, 2*(j-1), level+1);
+      if (found != NULL){
+	insert_neighbour(found, nb);
+	insert_neighbour(found, nbd);
+      }
+      found = H->search (2*i, 2*(j-1)+1, level+1);
+      if (found != NULL){ 
+	insert_neighbour(found, nb);
+	insert_neighbour(found, nbd);
+      }
+      found = H->search (2*i+1, 2*(j-1)+1, level+1);
+      if (found != NULL) {
+	insert_neighbour(found, nb);
+	insert_neighbour(found, nbd);
+      }
+      /* Coarser level */
+      found = H->search ((i+1)/2-1, (j+1)/2-1, level-1);
+      if (found != NULL){ 
+	insert_neighbour(found, nb);
+	insert_neighbour(found, nbd);
+      }
+      found = H->search ((i+1)/2, (j+1)/2-1, level-1);
+      if (found != NULL){
+	insert_neighbour(found, nb);
+	insert_neighbour(found, nbd);
+      }
+    }
+  }
+  
+  for(list <cell *>::iterator it = nbd->begin(); it != nbd->end(); it++){
+    this->left_neighbours_fd(*it, nb);
+    this->right_neighbours_fd(*it, nb);
+  }
+
+}
+
 void mesh::up_neighbours_fd (cell * c, list <cell *> * nb) {
   int i = c->get_cell_x();
   int j = c->get_cell_y();
   int level = c->get_cell_level();
-  
+  list <cell *> * nbu = new list <cell*>;
   if (j != pow(2,level)*nyb - 1) {
     cell * found = H->search (i, j+1, level);
     if (found != NULL) {
       insert_neighbour(found, nb);
+      insert_neighbour(found, nbu);
     }
     else{
       /* Finer level! */
       found = H->search (2*i, 2*(j+1), level+1);
       if (found != NULL){ 
 	insert_neighbour(found, nb);
+	insert_neighbour(found, nbu);
       }
       found = H->search (2*i+1, 2*(j+1), level+1);
       if (found != NULL){
 	insert_neighbour(found, nb);
+	insert_neighbour(found, nbu);
       }
       found = H->search (2*i+1, 2*(j+1)+1, level+1);
       if (found != NULL){ 
 	insert_neighbour(found, nb);
+	insert_neighbour(found, nbu);
       }
       found = H->search (2*i, 2*(j+1)+1, level+1);
       if (found != NULL) {
 	insert_neighbour(found, nb);
+	insert_neighbour(found, nbu);
       }
       /* Coarser level */
       found = H->search ((i+1)/2-1, (j+1)/2, level-1);
       if (found != NULL){ 
 	insert_neighbour(found, nb);
+	insert_neighbour(found, nbu);
       }
       found = H->search ((i+1)/2, (j+1)/2, level-1);
       if (found != NULL){
 	insert_neighbour(found, nb);
+	insert_neighbour(found, nbu);
       }
     }
+  }
+  for(list <cell *>::iterator it = nbu->begin(); it != nbu->end(); it++){
+    this->left_neighbours_fd(*it, nb);
+    this->right_neighbours_fd(*it, nb);
   }
 }
 
@@ -691,22 +968,22 @@ vector <cell *> * mesh:: siblings(cell * c){
     cie = c;
   }
 
-  if (cie != NULL) {
+  if (cie != NULL){// && cie->get_cell_refine() != number_of_levels) {
     cell * c_sibling;
     
     //célula irmã do canto inferior direito
     c_sibling = search(cie->get_cell_x() + 1, cie->get_cell_y(), cie->get_cell_level());
-    if (c_sibling != NULL)
+    if (c_sibling != NULL)// && c_sibling->get_cell_refine() != number_of_levels)
       L->push_back(c_sibling);
 
     //célula irmã do canto superior esquerdo
     c_sibling = search(cie->get_cell_x(), cie->get_cell_y() + 1, cie->get_cell_level());
-    if (c_sibling != NULL)
+    if (c_sibling != NULL)// && c_sibling->get_cell_refine() != number_of_levels)
       L->push_back(c_sibling);
     
     //célula irmã do canto superior direito
     c_sibling = search(cie->get_cell_x() + 1, cie->get_cell_y() + 1, cie->get_cell_level());
-    if (c_sibling != NULL)
+    if (c_sibling != NULL)// && c_sibling->get_cell_refine() != number_of_levels)
       L->push_back(c_sibling);
   }
   
@@ -730,9 +1007,9 @@ bool equal(cell * c1, cell * c2){
 
 list <cell*>::iterator mesh::merge(vector <cell *> * V, cell *c){
   list <cell *>::iterator ret;
-  
-  cell * new_c = new cell ((V->back())->get_cell_x() / 2, (V->back())->get_cell_y() / 2, (V->back())->get_cell_level() - 1, -1);
- 
+    
+  cell * new_c = new cell ((V->back())->get_cell_x() / 2, (V->back())->get_cell_y() / 2, (V->back())->get_cell_level() - 1);
+  //new_c->set_cell_with_particle(0);
   insert(new_c);
   for (vector <cell *>::iterator it = V->begin(); it != V->end(); it++) {
     if (!equal(*it, c)){
@@ -751,7 +1028,7 @@ int mesh::counting_mesh_cell(){
     
   for (int i = 0; i < number_of_levels; i++) {
     for (list <cell *>::iterator it = l->at(i)->begin(); it != l->at(i)->end(); it++) {
-      (*it)->put_cell_index(ncell);      
+      (*it)->set_cell_index(ncell);      
       
       ncell++;
     }
@@ -913,7 +1190,7 @@ void mesh::triangular_mesh(int * ncellp, int * nelemp, int * narep, int * nvertp
     dx = fabs(xend - xbegin) / (nxb * pow(2, k));
     dy = fabs(yend - ybegin) / (nyb * pow(2, k));
     for (list <cell *>::reverse_iterator it = l->at(k)->rbegin(); it != l->at(k)->rend(); it++) {
-      (*it)->put_cell_index(ncell);
+      (*it)->set_cell_index(ncell);
       i = (*it)->get_cell_x();
       j = (*it)->get_cell_y();
       vert->push_back(*it);
@@ -1198,7 +1475,7 @@ void mesh::triangular_mesh_refined(int * ncellp, int * nelemp, int * narep, int 
     dx = fabs(xend - xbegin) / (nxb * pow(2, k));
     dy = fabs(yend - ybegin) / (nyb * pow(2, k));
     for (list <cell *>::reverse_iterator it = l->at(k)->rbegin(); it != l->at(k)->rend(); it++) {
-      (*it)->put_cell_index(ncell);
+      (*it)->set_cell_index(ncell);
       i = (*it)->get_cell_x();
       j = (*it)->get_cell_y();
       vx->push_back(xbegin+i*dx);
@@ -2257,4 +2534,29 @@ void mesh::print_matrix(vector <int> * IA, vector <int> * JA, vector <double> * 
   }
 }
 
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+
+vector <double> mesh::max_propriedades(){
+  vector <double> pmax;
+  double velu, velv, phi;
+  pmax.push_back(0.0);
+  pmax.push_back(0.0);
+  pmax.push_back(0.0);
+ 
+  for (int i = 0; i < number_of_levels; i++) {
+    
+    for (list <cell *>::iterator it = l->at(i)->begin(); it != l->at(i)->end(); it++) {
+      velu = (*it)->get_cell_velu();
+      velv = (*it)->get_cell_velv();
+      phi = (*it)->get_cell_phi();
+      if(velu > pmax[0])
+	pmax[0] = velu;
+      if(velv > pmax[1])
+	pmax[1] = velv;
+      if(phi > pmax[2])
+	pmax[2] = phi;
+    }
+  }
+  return pmax;
+}

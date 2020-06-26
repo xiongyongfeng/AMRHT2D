@@ -108,10 +108,12 @@ unsigned int hash_table::get_hash_table_size() {
 }
 
 int hash_table::number_of_collision(){
-  int count = 0;
+  int count = 0, ct;
   unsigned int max_size = 0;
+  
   vector <list<cell *> *>::iterator it = H->begin();
   while (it != H->end()) {
+    //cout << "# cell position " << (*it)->size() << endl;
     if (max_size < (*it)->size())
       max_size = (*it)->size();
     if ((*it)->size() > 1) {
@@ -119,8 +121,18 @@ int hash_table::number_of_collision(){
     }
     it++;
   }
+  for(unsigned int k = 0; k <= max_size; k++){
+    it = H->begin();
+    ct = 0;
+    while (it != H->end()) {
+      if((*it)->size() == k)
+	ct++;
+      it++;
+    }
+    cout << k << " " << ct << endl;
+  }
   cout << "Max size in one position: " << max_size << endl;
-
+  
   return count;
 }
 
