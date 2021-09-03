@@ -22,7 +22,9 @@ using namespace std;
 double u (double x, double y, double t){
   double r, vtc;
   r = sqrt((x - xc)*(x - xc) + (y - yc)*(y - yc));
+
   vtc = (Re*Sc/(2*PI*r))*(1.0 - exp(-(r*r)/(4.0*Sc*t)));
+
   return ((y - yc)*vtc/r);
   //return(-r*sin(t));
 }
@@ -30,7 +32,9 @@ double u (double x, double y, double t){
 double v (double x, double y, double t){
   double r, vtc;
   r = sqrt((x - xc)*(x - xc) + (y - yc)*(y - yc));
+
   vtc = (Re*Sc/(2*PI*r))*(1.0 - exp(-(r*r)/(4.0*Sc*t)));
+
   return (-(x - xc)*vtc/r);
   //return(r*cos(t));
 }
@@ -51,15 +55,16 @@ double df (double x, double y, double t) {
 }
 
 int main (){
-  
+  clock_t start0, finish0, start, finish;
+  start = clock();
   list <particle *> P;
   
-  int npart = 10000;
+  int npart = 1000;
   //particle * particle_bck;
 
   int number_of_levels = 4;
-  int nxb = 32;
-  int nyb = 32;
+  int nxb = 16;
+  int nyb = 16;
 
   dominio * D;
   
@@ -69,29 +74,33 @@ int main (){
   ybegin = -0.5;
   yend = 0.5;
   D = new dominio (xbegin, ybegin, xend, yend);
-  
+    
   mesh * M;
   
   /******create a base mesh BASE x BASE *********/
-  //you can find the value for BASE at mesh.h file 
+  //you can find the value for BASE at mesh.h file
+  start0 = clock();
   M = new mesh(D, number_of_levels, nxb, nyb);
+  finish0 = clock();
+  cout << "tempo geracao malha base = " << double(finish0 - start0)/CLOCKS_PER_SEC << endl;
+  
   /*********************************************/
   
   srand(123456);
   double raio;
   double xp, yp;//, up, vp, ufp, vfp, taup, nvelup;
   
-
   vector <double> vmax, xv, yv, uv, vv;
   double dt; //dx, dy, dt;//, velu, velv;
   double k1u, k1v, k2u, k2v, k3u, k3v, k4u, k4v;
   list <cell *> * l;
   list <cell *>::iterator it, itv, itb;
-  double tempo = 1.e-6, tf = 1.0e-2;
+  double tempo = 0.0, tf = 1.0;
   //list <cell *> * lv, ln;
   //cell ** sv;
   vector <cell *> *V;
-    
+  int ctmax = 300;
+
   cell * cparticle, * cparticle_bck;
  
   xbegin = M->get_dominio()->get_xbegin();
@@ -152,6 +161,7 @@ int main (){
 
   int ct = 0;
   M->initialize_var(&u, &v, &phi, tempo, tempo);
+
   printf("%d %.8e\n", ct, tempo);
   M->print_silo(ct, &P);
   
@@ -159,8 +169,8 @@ int main (){
   vmax = M->max_propriedades();
   dt = 0.5*h/max(vmax[0],vmax[1]);
   
-  while(tempo < tf){
-    printf("%d %.8g\n", ct+1, tempo+dt);
+  while(tempo < tf && ct <= ctmax){
+    //printf("%d %.8g\n", ct+1, tempo);
   
     //Localiza particula e marca posicao da particulas e vizinhas
     // -> "deve ser uma funcao" 
@@ -261,18 +271,24 @@ int main (){
     }
     
     ct++;
-    dt = min(dt, tf - tempo);
-    tempo += dt;
+    
     M->initialize_var(&u, &v, &phi, tempo, tempo);
-    //if(ct%100 == 0)
-    M->print_silo(ct, &P);
-    M->get_hash_table()->print_information();
+    
     vmax = M->max_propriedades();
-    dt = 0.5*h/max(vmax[0],vmax[1]);    
+    dt = 0.5*h/max(vmax[0],vmax[1]);
+    
+    //if(ct%50 == 0)
+    //M->print_silo(ct, &P);
+    //M->get_hash_table()->print_information();
+    //cout << dt << " " << tf << " " << tempo << " " << fabs(tf - tempo) << " " << tempo + dt << endl;
+    dt = min(dt, fabs(tf - tempo));
+    
+    tempo += dt;    
     
   }
-
-
+  finish = clock();
+  //M->print_silo(ct, &P);
+  cout << ct << " CPU time = " << double(finish - start)/CLOCKS_PER_SEC << endl;
   
   return 0;
 }

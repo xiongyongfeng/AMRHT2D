@@ -1,8 +1,0 @@
-SZIP:
-./configure --prefix=/opt/szip/
-
-HDF5:
-./configure --prefix=/opt/hdf5 --enable-fortran --enable-fortran2003 --enable-cxx --with-szlib=/opt/szip
-
-SILO:
-./configure --prefix=/opt/silo --enable-fortran --enable-optimization --with-hdf5=/opt/hdf5/include,/opt/hdf5/lib

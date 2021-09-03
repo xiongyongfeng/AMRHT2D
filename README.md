@@ -1,2 +1,2 @@
 # AMRHT2D
-A tool to solve PDEs
+A tool to generate meshes using hash tables.

@@ -1,5 +1,6 @@
 #include<iostream>
 #include "hash_table.h"
+#include "math.h"
 
 hash_table::hash_table (int size, int max_level, int n_colunas_max_level){
   //printf ("tamanho da tabela: %d\n", size);
@@ -70,12 +71,18 @@ unsigned int hash_table::hash_function(int x, int y, int level){
   int index, key, i, j;
   int diff_level = this->max_level - level;
   int pow_2_diff_level = pow(2, diff_level);
+  double ra, kr;
+  ra = (sqrt(5) - 1.0)/2.0;
   i = x * pow_2_diff_level; //encontra a abscissa correspondente a x no nível mais fino
   j = y * pow_2_diff_level; //encontra a ordenada correspondente a y no nível mais fino
   key = (this->n_colunas_max_level * j + i); //encontra a numeração da célula (i, j, l_max)
                                              //considerando numeração da esquerda para a direira e
                                              //de cima para baixo (e começando do 0)
-  index = key % H->size();
+  /* Metodo da Divisao */
+  //index = key % H->size();
+  /* Metodo de Fibonacci */
+  kr = key*ra;
+  index = (int)(H->size()*(kr - (int)(kr)));
   return index;
 }
 
@@ -129,7 +136,6 @@ int hash_table::number_of_collision(){
 	ct++;
       it++;
     }
-    cout << k << " " << ct << endl;
   }
   cout << "Max size in one position: " << max_size << endl;
   

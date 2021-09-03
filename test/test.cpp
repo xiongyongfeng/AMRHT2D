@@ -19,7 +19,9 @@ double df (double x, double y, double tempo) {
   yc = 0.5;
   r = 0.25;
   d = sqrt((x-xc)*(x-xc) +(y-yc)*(y-yc));
+
   phi = 0.5*(1.0 + tanh(2000*(d-r)));
+
   //return -4 * PI * PI * f(tempo * x, tempo * y);
     return(phi);
 }
@@ -27,6 +29,7 @@ double df (double x, double y, double tempo) {
 int main (){
   
   int number_of_levels = 4;
+
   int nxb = 32;
   int nyb = 32;
 
@@ -69,10 +72,11 @@ int main (){
     it = l->begin();
     
     while (it != l->end()){
-      xd = xbegin + (((*it)->get_cell_x() + 0.5) * dx);
-      yd = ybegin + (((*it)->get_cell_y() + 0.5) * dy);
 
-      if (df(xd + (dx / 2.), yd + (dy / 2.), dxf) <= 0.7 && df(xd + (dx / 2.), yd + (dy / 2.), dxf) >= -0.7){
+      xd = xbegin + (((*it)->get_cell_x()) * dx);
+      yd = ybegin + (((*it)->get_cell_y()) * dy);
+
+      if (df(xd+0.5*dx, yd+0.5*dy, 0.0) < 0.999 - i*0.05 && df(xd+0.5*dx, yd+0.5*dy, 0.0) > - 0.999 + i*0.05){
 
       	it = M->split(*it);
       }
@@ -84,7 +88,9 @@ int main (){
   }
 
   M->create_unstructured_mesh(&df, dxf);
+
   //M->get_hash_table()->print_information();
+
   
   return 0;
 }
