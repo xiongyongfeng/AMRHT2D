@@ -22,7 +22,9 @@ using namespace std;
 double u (double x, double y, double t){
   double r, vtc;
   r = sqrt((x - xc)*(x - xc) + (y - yc)*(y - yc));
-  vtc = (Re*Sc/(2*PI*r))*(1.0 - exp(-(r*r)/(4.0*Sc*(t+1.0e-6))));
+
+  vtc = (Re*Sc/(2*PI*r))*(1.0 - exp(-(r*r)/(4.0*Sc*t)));
+
   return ((y - yc)*vtc/r);
   //return(-r*sin(t));
 }
@@ -30,7 +32,9 @@ double u (double x, double y, double t){
 double v (double x, double y, double t){
   double r, vtc;
   r = sqrt((x - xc)*(x - xc) + (y - yc)*(y - yc));
-  vtc = (Re*Sc/(2*PI*r))*(1.0 - exp(-(r*r)/(4.0*Sc*(t+1.e-6))));
+
+  vtc = (Re*Sc/(2*PI*r))*(1.0 - exp(-(r*r)/(4.0*Sc*t)));
+
   return (-(x - xc)*vtc/r);
   //return(r*cos(t));
 }
@@ -96,7 +100,7 @@ int main (){
   //cell ** sv;
   vector <cell *> *V;
   int ctmax = 300;
-  
+
   cell * cparticle, * cparticle_bck;
  
   xbegin = M->get_dominio()->get_xbegin();
@@ -157,8 +161,9 @@ int main (){
 
   int ct = 0;
   M->initialize_var(&u, &v, &phi, tempo, tempo);
-  //printf("%d %.8e\n", ct, tempo);
-  //M->print_silo(ct, &P);
+
+  printf("%d %.8e\n", ct, tempo);
+  M->print_silo(ct, &P);
   
   double h = min(fabs(xend - xbegin) / (nxb * pow(2, number_of_levels-1)), fabs(yend - ybegin) / (nyb * pow(2, number_of_levels-1)));
   vmax = M->max_propriedades();
@@ -177,7 +182,6 @@ int main (){
       it++;
     }
 
-    
     for(list <particle *>::iterator itp = P.begin(); itp != P.end(); itp++){
       
       xp = (*itp)->get_particle_x();

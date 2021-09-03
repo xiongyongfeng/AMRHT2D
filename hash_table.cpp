@@ -136,6 +136,7 @@ int hash_table::number_of_collision(){
 	ct++;
       it++;
     }
+    //cout << k << " " << ct << endl;
   }
   cout << "Max size in one position: " << max_size << endl;
   

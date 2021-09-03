@@ -5,6 +5,7 @@
 #include <ctime>
 #include "mesh.h"
 #include "particle.h"
+#include "print.h"
 
 #define PI 3.1415926535897
 
@@ -15,14 +16,7 @@ double f (double x, double y) {
 }
 
 double df (double x, double y, double tempo) {
-  double xc, yc, r, phi, d;
-  xc = 0.5;
-  yc = 0.5;
-  r = 0.25;
-  d = sqrt((x-xc)*(x-xc) +(y-yc)*(y-yc));
-  phi = tanh((r-d)/(sqrt(2)*1.5*tempo));
-  //return -4 * PI * PI * f(tempo * x, tempo * y);
-    return(phi);
+  return -4 * PI * PI * f(tempo * x, tempo * y);
 }
 
 int main (){
@@ -37,14 +31,14 @@ int main (){
 
   q->print_particle();
   
-  int number_of_levels = 6;
-  int nxb = 32;
-  int nyb = 32;
+  int number_of_levels = 4;
+  int nxb = 64;
+  int nyb = 64;
 
   dominio * D;
   
   double xbegin, ybegin, xend, yend;
-  xbegin = ybegin = 0.;
+  xbegin = ybegin = -1.;
   xend = yend = 1.;
   D = new dominio (xbegin, ybegin, xend, yend);
   
