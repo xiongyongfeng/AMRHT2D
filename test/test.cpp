@@ -19,17 +19,14 @@ double df (double x, double y, double tempo) {
   yc = 0.5;
   r = 0.25;
   d = sqrt((x-xc)*(x-xc) +(y-yc)*(y-yc));
-
-  phi = 0.5*(1.0 + tanh(2000*(d-r)));
-
+  phi = tanh(75*(r-d));
   //return -4 * PI * PI * f(tempo * x, tempo * y);
     return(phi);
 }
 
 int main (){
-  
-  int number_of_levels = 4;
 
+  int number_of_levels = 3;
   int nxb = 32;
   int nyb = 32;
 
@@ -63,7 +60,7 @@ int main (){
 
   double dxf = fabs(xend - xbegin) / (nxb * pow(2, number_of_levels - 1));
   for (int i = 0; i < number_of_levels -1; i++) {
-    //printf("%d\n", i);
+    
     l = M->get_list_cell_by_level(i);
     
     dx = fabs(xend - xbegin) / (nxb * pow(2, i));
@@ -72,12 +69,11 @@ int main (){
     it = l->begin();
     
     while (it != l->end()){
-
       xd = xbegin + (((*it)->get_cell_x()) * dx);
       yd = ybegin + (((*it)->get_cell_y()) * dy);
 
       if (df(xd+0.5*dx, yd+0.5*dy, 0.0) < 0.999 - i*0.05 && df(xd+0.5*dx, yd+0.5*dy, 0.0) > - 0.999 + i*0.05){
-
+      //if (df(xd, yd, 0.0) < 0.9 && df(xd, yd, 0.0) > - 0.9){
       	it = M->split(*it);
       }
       else
@@ -86,11 +82,9 @@ int main (){
     }
     //M->initialize_var(&u, &v, &df, tempo, t0);
   }
-
+  
   M->create_unstructured_mesh(&df, dxf);
-
-  //M->get_hash_table()->print_information();
-
+  M->get_hash_table()->print_information();
   
   return 0;
 }

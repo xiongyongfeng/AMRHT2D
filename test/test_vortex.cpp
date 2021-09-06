@@ -8,7 +8,7 @@
 #define PI 3.1415926535897
 #define Re 50
 #define Sc 1
-#define Xsi 75
+#define Xsi 150
 #define xc 0.5
 #define yc 0.5
 
@@ -116,7 +116,7 @@ int main (){
 	phis = (*it)->get_cell_phi();
 	erro = max(erro, sqrt(pow(phis - df(xd, yd, tempo),2)));  
 	//refinement
-	if (phis < 0.999 - k*0.05 && phis > - 0.999 + k*0.05){
+	if (phis < 0.99 - k*0.05 && phis > - 0.99 + k*0.05){
 	  ns++;
 	  it = M->split(*it);
 	}
