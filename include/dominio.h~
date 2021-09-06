@@ -1,6 +1,0 @@
-class dominio {
- private:
-  double xbegin, ybegin, xend, yend;
- public:
-  
-};
