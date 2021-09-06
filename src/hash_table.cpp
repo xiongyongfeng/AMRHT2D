@@ -79,10 +79,10 @@ unsigned int hash_table::hash_function(int x, int y, int level){
                                              //considerando numeração da esquerda para a direira e
                                              //de cima para baixo (e começando do 0)
   /* Metodo da Divisao */
-  //index = key % H->size();
+  index = key % H->size();
   /* Metodo de Fibonacci */
   kr = key*ra;
-  index = (int)(H->size()*(kr - (int)(kr)));
+  //index = (int)(H->size()*(kr - (int)(kr)));
   return index;
 }
 
@@ -136,6 +136,7 @@ int hash_table::number_of_collision(){
 	ct++;
       it++;
     }
+    cout << k << " " << ct << endl;
   }
   cout << "Max size in one position: " << max_size << endl;
   

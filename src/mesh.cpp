@@ -78,7 +78,7 @@ cell * mesh::search_particle_cell(particle * p, int level) {
 void mesh::print_mesh() {
   for (int i = 0; i < number_of_levels; i++)
     for (list <cell *>::iterator it = l->at(i)->begin(); it != l->at(i)->end(); it++)
-      cout << "(" << (*it)->get_cell_x() << ", " << (*it)->get_cell_y() << "): " << (*it)->get_cell_level() << ", " << (*it)->get_cell_index() << endl;
+      cout << (*it)->get_cell_x() << " " << (*it)->get_cell_y() << " " << (*it)->get_cell_level() << " " << (*it)->get_cell_index() << endl;
   
 }
 
@@ -192,7 +192,7 @@ void mesh::create_unstructured_mesh(double (* f) (double x, double y, double t),
   char palavra [100];
   for (int i = 0; i < 100; i++)
     palavra[0] = '\0';
-  sprintf(palavra,"/home/priscila/AMRHT2D-master/data/basic%4.3lf.silo", 1 + tempo);
+  sprintf(palavra,"/home/priscila/Pesquisa/AMRHT2D-master/data/basic%4.3lf.silo", 1 + tempo);
   
   dbfile = DBCreate(palavra, DB_CLOBBER, DB_LOCAL,"Comment about the data", DB_HDF5);
   if(dbfile == NULL)
@@ -361,7 +361,7 @@ void mesh::print_silo(int ct, list <particle *> * P) {
   char palavra [100];
   for (int i = 0; i < 100; i++)
     palavra[0] = '\0';
-  sprintf(palavra,"/home/priscila/AMRHT2D-master/data/basic%d.silo", ct);
+  sprintf(palavra,"/home/priscila/Pesquisa/AMRHT2D-master/data/basic%d.silo", ct);
   
   dbfile = DBCreate(palavra, DB_CLOBBER, DB_LOCAL,"Comment about the data", DB_HDF5);
   if(dbfile == NULL)
@@ -945,6 +945,7 @@ list <cell *> * mesh::neighbours_fd (cell * c) {
   
   return nb;
 }
+
 /* Siblings */
 
 vector <cell *> * mesh:: siblings(cell * c){
@@ -1027,9 +1028,9 @@ int mesh::counting_mesh_cell(){
   ncell = 0;
     
   for (int i = 0; i < number_of_levels; i++) {
-    for (list <cell *>::iterator it = l->at(i)->begin(); it != l->at(i)->end(); it++) {
+    for (list <cell *>::reverse_iterator it = l->at(i)->rbegin(); it != l->at(i)->rend(); it++) {
       (*it)->set_cell_index(ncell);      
-      
+      //(*it)->print_cell();
       ncell++;
     }
   }
@@ -2153,7 +2154,7 @@ void mesh::mesh_adress(int ncell, vector <cell*> * elem){
 /*Vizinhas de todas as celulas da malha */
 
 int mesh::neighbours_all_cell(){
-  int i, j, level, idva, idv;
+  int i, j, level, idva, idv, idx;
   int ncellv = 0;
   cell * c;
   
@@ -2162,21 +2163,23 @@ int mesh::neighbours_all_cell(){
       i = (*it)->get_cell_x();
       j = (*it)->get_cell_y();
       level = (*it)->get_cell_level();
+      idx = (*it)->get_cell_index();
       c = search(i, j, level);
       if (c != NULL) {
-	list <cell *> * lnew = neighbours_fd (c);
-	cout << "***" << endl;
-	(*it)->print_cell();
-	cout << "***" << endl;
+	list <cell *> * lnew = neighbours(c);
+	printf("%d ",idx);
+	//(*it)->print_cell();
 	idva = -1;
 	for (list <cell *>::iterator ite = lnew->begin(); ite != lnew->end(); ite++) {
 	  idv = (*ite)->get_cell_index();
-	  (*ite)->print_cell();
+	  printf("%d ", idv);
+	  //(*ite)->print_cell();
 	  if(idv != idva)
 	    ncellv++;
 	  idva = idv;
 	}
 	lnew->clear();
+	printf("\n");
       }
       else
 	{

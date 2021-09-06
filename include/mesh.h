@@ -5,6 +5,7 @@
 #include "hash_table.h"
 #include "double_hash_table.h"
 #include "dominio.h"
+#include "particle.h"
 
 using namespace std;
 
@@ -24,10 +25,12 @@ class mesh {
   void insert(cell *);
   list <cell *>::iterator remove(cell *);
   cell * search (int, int, int);
+  cell * search_particle_cell (particle *, int);
   void print_mesh();
   hash_table * get_hash_table();
   list <cell *> * get_list_cell_by_level (int level);
   list <cell *>::iterator split(cell *);
+  cell ** split_return_new_cells(cell * c);
 
   /*Recebe uma célula c e o nível mais fino que c (ou mesmo nível de c) de seus vizinho(s) à esquerda.
     Devolve uma lista com seu(s) vizinho(s). Essa lista NÃO PODE SER NULA.*/
@@ -69,7 +72,9 @@ class mesh {
   void rhs_dirichlet_boundary_conditions (double (*f) (double x, double y), vector<double> * fvalue);
   
   void create_unstructured_mesh(double (* f) (double x, double y, double t), double tempo);
-
+  void print_silo(int ct, list <particle *> *P);
+  void initialize_var(double (* u) (double x, double y, double t), double (* v) (double x, double y, double t), double (*phi) (double x, double y, double t), double tempo, double tempo0);
+  vector <double> max_propriedades();
   //Recebe uma célula c e devolve uma lista de células irmãs de c somente se existirem. Caso contrário, devolve NULL. As células irmãs de c são c mais outras três células produzidas com o refinamento de uma célula.
   vector <cell *> * siblings (cell * c);
 

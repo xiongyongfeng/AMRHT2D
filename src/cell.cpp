@@ -102,7 +102,7 @@ cell ** cell::split (){
 }
 
 void cell::print_cell () {
-  printf ("(%d, %d):%d %d %d\n", x, y, level, index, cp);
+  printf ("%d %d %d %d\n", x, y, level, index);
 }
 
 
