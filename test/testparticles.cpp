@@ -59,9 +59,9 @@ int main (){
   int npart = 1000;
   //particle * particle_bck;
 
-  int number_of_levels = 1;
-  int nxb = 4096;
-  int nyb = 4096;
+  int number_of_levels = 4;
+  int nxb = 16;
+  int nyb = 16;
 
   dominio * D;
   
