@@ -198,6 +198,7 @@ void mesh::create_unstructured_mesh(double (* f) (double x, double y, double t),
   if(dbfile == NULL)
     {
       fprintf(stderr, "Could not create Silo file!\n");
+      fprintf(stderr, "Altere 'palavra' em mesh.cpp!\n");  
       exit(0);
     }
   
