@@ -59,7 +59,7 @@ int main (){
   //particle * particle_bck;
 
   int number_of_levels = 2;
-  int nxb = 32
+  int nxb = 32;
   int nyb = 32;
 
   dominio * D;
