@@ -1,15 +1,14 @@
 #ATENÇÃO: NÃO ESQUEÇA DE ALTERAR O ARQUIVO .bashrc
 #Adicione: export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/opt/szip/lib:/opt/hdf5/lib:/opt/silo/lib"
 CC=g++
-#CC=/opt/hdf5/bin/h5c++
+
 INCLUDE_PATH=include 
 INCLUDE_SILO_PATH=/opt/silo/include
-#INCLUDE_HDF5_PATH=/opt/hdf5/include
+
 LIB_PATH=-L/opt/hdf5/lib -L/opt/szip/lib  -L/opt/zlib/lib -L/opt/silo/lib -lhdf5 -lsz -lz -lm -lsiloh5
 SRC=src
 TEST=test
 DATA=data
-#-Wl,--rpath -Wl,LIBDIR
 
 OPTIONS=-Wall -ansi -pedantic -Wno-unused-result -O3 -std=c++11
 #LIBS= /opt/hdf5/lib -lhdf5 -L/opt/szip/lib -lsz  -L/opt/zlib/lib -lz -L/opt/silo/lib -lsiloh5 -lm
